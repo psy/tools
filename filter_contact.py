@@ -4,55 +4,87 @@ import sys
 import json
 import datetime
 from bson import json_util
-from hashlib import md5 as hash_func
+from functools import reduce
 
-
-FILTER_FIELDS = ['node_id', 'owner', 'hostname']
 dt = datetime.datetime
+argv = sys.argv
+
+KEY_MAPPING = {
+    'node_id': 'node_id',
+    'contact': 'owner.contact',
+    'hostname': 'hostname'
+}
 
 
-def stable_hash(entry):
-    return hash_func(entry.encode('ascii')).hexdigest()
+def get_recursive(path, p_dict):
+    return reduce(dict.__getitem__, path.split("."), p_dict)
 
 
 # TODO create dict class with versioning instead of explicit access
-def create_or_update(ex, item, field):
-    k, v = item
+def create_or_update(target, src, target_key, src_key):
     try:
-        entry = v[field]
+        hash_dict = target[target_key]
     except KeyError:
+        hash_dict = []
+
+    try:
+        val = get_recursive(src_key, src)
+    except:
         return
-
-    try:
-        tmp_mac = ex[k]
-    except KeyError:
-        tmp_mac = {}
-        ex[k] = tmp_mac
-
-    try:
-        tmp = tmp_mac[field]
-    except KeyError:
-        tmp = {}
-        tmp_mac[field] = tmp
-
-    if isinstance(entry, dict):
-        entry_hash = stable_hash(str(sorted(entry.items())))
     else:
-        entry_hash = stable_hash(entry)
-    if entry_hash not in tmp and field in v:
-        tmp[entry_hash] = {
-            "time": dt.utcnow(),
-            "val": entry}
+        target[target_key] = make_entry(hash_dict, val)
 
 
-with open(sys.argv[2], "r+") as db:
-    ex = json.load(db, object_hook=json_util.object_hook)
+def make_entry(hash_dict, val):
+    # we assume sorted list here
+    try:
+        if hash_dict[-1][0] == val:
+            return hash_dict
+    except:
+        pass
+    hash_dict.append([val, dt.utcnow()])
+    return hash_dict
 
-with open(sys.argv[1]) as f:
-    nodes = json.load(f)
-    for item in nodes.items():
-        for field in FILTER_FIELDS:
-            create_or_update(ex, item, field)
 
-with open(sys.argv[2], "w") as db:
-    json.dump(ex, db, default=json_util.default, sort_keys=True, indent=4)
+def get_current(versioned_dict, key):
+    return sorted(versioned_dict[key].items(), key=lambda x: x[1])[0]
+
+
+def dump_path(obj, path):
+    with open(path, "w") as fp:
+        json.dump(
+            obj,
+            fp,
+            default=json_util.default,
+            sort_keys=True,
+            indent=4)
+
+
+def load_path(path):
+    with open(path, "r") as fp:
+        return json.load(fp, object_hook=json_util.object_hook)
+
+
+def process_items(nodes, db, mapping):
+    for k, node_entry in nodes.items():
+        try:
+            db_entry = db[k]
+        except KeyError:
+            db_entry = {}
+        for target_key, src_key in KEY_MAPPING.items():
+            create_or_update(db_entry, node_entry, target_key, src_key)
+        db[k] = db_entry
+
+
+def run(nodes_file, db_file):
+    nodes = load_path(nodes_file)
+    try:
+        db = load_path(db_file)
+    except:
+        db = {}
+    process_items(nodes, db, KEY_MAPPING)
+    dump_path(db, db_file)
+
+
+if __name__ == "__main__":
+    run(argv[1], argv[2])
