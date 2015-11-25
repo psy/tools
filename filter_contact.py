@@ -22,28 +22,22 @@ def get_recursive(path, p_dict):
 
 # TODO create dict class with versioning instead of explicit access
 def create_or_update(target, src, target_key, src_key):
-    try:
-        hash_dict = target[target_key]
-    except KeyError:
-        hash_dict = []
+    versions = target.get(target_key, [])
 
     try:
         val = get_recursive(src_key, src)
-    except:
+    except KeyError:
         return
     else:
-        target[target_key] = make_entry(hash_dict, val)
+        target[target_key] = make_entry(versions, val)
 
 
-def make_entry(hash_dict, val):
+def make_entry(versions, val):
     # we assume sorted list here
-    try:
-        if hash_dict[-1][0] == val:
-            return hash_dict
-    except:
-        pass
-    hash_dict.append([val, dt.utcnow()])
-    return hash_dict
+    if len(versions) > 0 and versions[-1][0] == val:
+            return versions
+    versions.append([val, dt.utcnow()])
+    return versions
 
 
 def get_current(versioned_dict, key):
@@ -67,10 +61,7 @@ def load_path(path):
 
 def process_items(nodes, db, mapping):
     for k, node_entry in nodes.items():
-        try:
-            db_entry = db[k]
-        except KeyError:
-            db_entry = {}
+        db_entry = db.get(k, {})
         for target_key, src_key in KEY_MAPPING.items():
             create_or_update(db_entry, node_entry, target_key, src_key)
         db[k] = db_entry
