@@ -6,14 +6,10 @@ import datetime
 from bson import json_util
 from functools import reduce
 
+import config
+
 dt = datetime.datetime
 argv = sys.argv
-
-KEY_MAPPING = {
-    'node_id': 'node_id',
-    'contact': 'owner.contact',
-    'hostname': 'hostname'
-}
 
 
 def get_recursive(path, p_dict):
@@ -62,7 +58,7 @@ def load_path(path):
 def process_items(nodes, db, mapping):
     for k, node_entry in nodes.items():
         db_entry = db.get(k, {})
-        for target_key, src_key in KEY_MAPPING.items():
+        for target_key, src_key in mapping.items():
             create_or_update(db_entry, node_entry, target_key, src_key)
         db[k] = db_entry
 
@@ -73,7 +69,7 @@ def run(nodes_file, db_file):
         db = load_path(db_file)
     except:
         db = {}
-    process_items(nodes, db, KEY_MAPPING)
+    process_items(nodes, db, config.KEY_MAPPING)
     dump_path(db, db_file)
 
 
