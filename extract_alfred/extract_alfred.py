@@ -7,11 +7,7 @@ from argparse import ArgumentParser
 from hashlib import md5 as hash_func
 
 
-import config
-
-logging.basicConfig(level=logging.WARNING)
-
-# TODO create dict class with versioning instead of explicit access
+# TODO use shelve, git or RDBMS for storage
 
 
 def _get_sorted_versions(versions):
@@ -50,7 +46,7 @@ def load_path(path):
         return json.load(fp)
 
 
-def process_items(nodes, db_nodes, db_times, mapping, time):
+def process_items(nodes, db_nodes, db_times, time):
     for k, node_entry in nodes.items():
         versions = db_nodes.get(k, {})
         versions, entry_hash = create_or_update(versions, node_entry, time)
@@ -72,7 +68,7 @@ def run(nodes_file, db_file, time):
     db_times_filename = db_file + "-times.json"
     db_nodes = load_db(db_nodes_filename)
     db_times = load_db(db_times_filename)
-    process_items(nodes, db_nodes, db_times, config.KEY_MAPPING, time)
+    process_items(nodes, db_nodes, db_times, time)
     dump_path(db_nodes, db_nodes_filename)
     dump_path(db_times, db_times_filename)
 
@@ -80,9 +76,20 @@ def run(nodes_file, db_file, time):
 if __name__ == "__main__":
     cur_time = int(time_mod.time())
     parser = ArgumentParser()
-    parser.add_argument("input")
-    parser.add_argument("output")
+    parser.add_argument(
+        "input",
+        help="path to the 158.json",
+        metavar="input_file")
+    parser.add_argument(
+        "output",
+        help="prefix for the output files",
+        metavar="prefix for output files")
     parser.add_argument("--time", default=cur_time)
+    parser.add_argument("--loglevel", default="WARNING")
     args = parser.parse_args()
+    numeric_level = getattr(logging, args.loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s'.format(args.loglevel))
+    logging.basicConfig(level=numeric_level)
 
     run(args.input, args.output, args.time)
