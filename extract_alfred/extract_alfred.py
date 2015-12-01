@@ -83,7 +83,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "output",
         help="prefix for the output files",
-        metavar="prefix for output files")
+        metavar="output_prefix")
     parser.add_argument("--time", default=cur_time)
     parser.add_argument("--loglevel", default="WARNING")
     args = parser.parse_args()
