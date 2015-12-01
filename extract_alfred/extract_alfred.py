@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 
 import json
 import time as time_mod
