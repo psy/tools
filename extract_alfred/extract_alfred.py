@@ -84,7 +84,7 @@ if __name__ == "__main__":
         "output",
         help="prefix for the output files",
         metavar="output_prefix")
-    parser.add_argument("--time", default=cur_time)
+    parser.add_argument("--time", default=cur_time, type=int)
     parser.add_argument("--loglevel", default="WARNING")
     args = parser.parse_args()
     numeric_level = getattr(logging, args.loglevel.upper(), None)
