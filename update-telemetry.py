@@ -89,7 +89,28 @@ def main():
         except IOError as e:
             pass
 
-              
+    with open('/proc/net/snmp6', 'r') as fh:
+        for line in fh.readlines():
+            key, value = line.split(' ', 1)
+            value = value.strip()
+            update['ipv6.%s' % key] = value
+
+    with open('/proc/net/snmp', 'r') as fh:
+        for heading, values in pairwise(fh.readlines()):
+            section, headings = heading.split(':')
+            headings = headings.strip().split(' ')
+            _, values = values.split(':')
+            values = values.strip().split(' ')
+            for key, value in zip(headings, values):
+                update['ipv4.%s.%s' % (section, key)] = value
+
+    with open('/proc/stat', 'r') as fh:
+        for line in fh.readlines():
+            key, value = line.split(' ', 1)
+            if key == 'ctxt':
+                update['context_switches'] = value.strip()
+                break
+
 
     #pprint.pprint(update)
     write_to_graphite(update)
