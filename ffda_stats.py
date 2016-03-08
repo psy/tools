@@ -130,8 +130,8 @@ def main():
             update['online_nodes'] = online_nodes
             update['gateways'] = gateway_count
             #            print(client_count)
-            pprint.pprint(update)
-            #write_to_graphite(update, log=logger)
+            #pprint.pprint(update)
+            write_to_graphite(update, log=logger)
         except Exception as e:
             print(e)
 
