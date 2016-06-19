@@ -28,6 +28,8 @@ def get_socket(host, port):
 
 
 def write_to_graphite(data, prefix='freifunk', hostname=socket.gethostname()):
+    if '.' in hostname:
+        hostname = hostname.split('.')[0]
     now = time.time()
     with get_socket('stats.darmstadt.freifunk.net', 2013) as s:
         for key, value in data.items():
