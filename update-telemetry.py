@@ -29,7 +29,7 @@ def get_socket(host, port):
 
 def write_to_graphite(data, prefix='freifunk', hostname=socket.gethostname()):
     now = time.time()
-    with get_socket('graphite', 2013) as s:
+    with get_socket('stats.darmstadt.freifunk.net', 2013) as s:
         for key, value in data.items():
             line = "%s.%s.%s %s %s\n" % (prefix, hostname, key, value, now)
             s.sendall(line.encode('latin-1'))
@@ -52,8 +52,10 @@ def main():
         'ffda-vpn',
         'ffda-bat',
         'ffda-br',
-        'icvpn'
+        'icvpn',
+        'ffda-transport'
     ]
+
     fields = [
         'bytes', 'packets', 'errs', 'drop', 'fifo',
         'frame', 'compressed', 'multicast',
@@ -76,7 +78,10 @@ def main():
                 groupdict = m.groupdict()
                 device_name = groupdict.pop('device_name')
                 device_name = device_name_mapping.get(device_name, device_name)
-                if device_name in device_whitelist:
+                if device_name in device_whitelist or device_name.endswith('-vpn') or \
+                        device_name.endswith('-bat') or \
+                        device_name.endswith('-br') or \
+                        device_name.endswith('-transport'):
                     for key, value in groupdict.items():
                         direction, metric = key.split('_')
                         update['%s.%s.%s' % (device_name, direction, metric)] = value
