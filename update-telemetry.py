@@ -57,7 +57,7 @@ def read_from_fastd_socket(filename):
                 strings.append(s)
 
             data = json.loads(''.join(strings))
-            pprint.pprint(data['statistics'])
+            #pprint.pprint(data['statistics'])
 
             online_peers = len([None for name, d in data['peers'].items() if d['connection']])
 
