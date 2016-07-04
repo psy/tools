@@ -82,7 +82,7 @@ def read_from_fastd_socket(filename):
 def main():
     fastd_sockets = (
         ('0', '/run/fastd-ffda-vpn.sock'),
-        ('1', '/run/fastd-ffda1-vpn.sock'),
+        ('1', '/run/fastd-ffda-vpn1.sock'),
     )
 
     device_name_mapping = {
