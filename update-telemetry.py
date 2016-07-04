@@ -54,7 +54,7 @@ def read_from_fastd_socket(filename):
                 s = client.recv(8096)
                 if not s:
                     break
-                strings.append(s)
+                strings.append(s.decode('utf-8'))
 
             data = json.loads(''.join(strings))
             #pprint.pprint(data['statistics'])
@@ -75,8 +75,8 @@ def read_from_fastd_socket(filename):
             }
 
         except Exception as e:
-            raise e
-        return {}
+            print(e)
+            return {}
 
 
 def main():
