@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
+import os
 import json
-import requests
 import re
 import itertools
 from contextlib import contextmanager
@@ -27,6 +27,15 @@ def get_socket(host, port):
     sock.close()
 
 
+@contextmanager
+def get_unix_socket(filename):
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    sock.connect(filename)
+    yield sock
+    sock.close()
+
+
 def write_to_graphite(data, prefix='freifunk', hostname=socket.gethostname()):
     if '.' in hostname:
         hostname = hostname.split('.')[0]
@@ -36,7 +45,46 @@ def write_to_graphite(data, prefix='freifunk', hostname=socket.gethostname()):
             line = "%s.%s.%s %s %s\n" % (prefix, hostname, key, value, now)
             s.sendall(line.encode('latin-1'))
 
+
+def read_from_fastd_socket(filename):
+    with get_unix_socket(filename) as client:
+        try:
+            strings = []
+            while True:
+                s = client.recv(8096)
+                if not s:
+                    break
+                strings.append(s)
+
+            data = json.loads(''.join(strings))
+            pprint.pprint(data['statistics'])
+
+            online_peers = len([None for name, d in data['peers'].items() if d['connection']])
+
+            return {
+                'peers.count': len(data['peers']),
+                'peers.online': online_peers,
+                'rx.packets': data['statistics']['rx']['packets'],
+                'rx.bytes': data['statistics']['rx']['bytes'],
+                'rx.reordered.bytes': data['statistics']['rx_reordered']['bytes'],
+                'rx.reordered.packets': data['statistics']['rx_reordered']['packets'],
+                'tx.bytes': data['statistics']['tx']['bytes'],
+                'tx.packets': data['statistics']['tx']['packets'],
+                'tx.dropped.bytes': data['statistics']['tx_dropped']['bytes'],
+                'tx.dropped.packets': data['statistics']['tx_dropped']['packets'],
+            }
+
+        except Exception as e:
+            raise e
+        return {}
+
+
 def main():
+    fastd_sockets = (
+        ('0', '/run/fastd-ffda-vpn.sock'),
+        ('1', '/run/fastd-ffda1-vpn.sock'),
+    )
+
     device_name_mapping = {
         'freifunk': 'ffda-br',
         'bat0': 'ffda-bat',
@@ -123,6 +171,15 @@ def main():
             if key == 'ctxt':
                 update['context_switches'] = value.strip()
                 break
+
+    for name, filename in fastd_sockets:
+        if not os.path.exists(filename):
+            continue
+ 
+        data = read_from_fastd_socket(filename)
+        if len(data) > 0:
+            update.update({'fastd.%s.%s' % (name, key): value for (key, value) in data.items()})
+
 
 
     #pprint.pprint(update)
