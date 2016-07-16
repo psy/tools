@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @contextmanager
 def get_socket(host, port):
     sock = socket.socket()
-    sock.settimeout(1)
+    sock.settimeout(3)
     sock.connect((host, port))
     yield sock
     sock.close()
@@ -22,7 +22,7 @@ def get_socket(host, port):
 def write_to_graphite(data, prefix='freifunk', log=None):
     # {u'status': u'up', u'graph': {u'max': 539, u'uptime': 90262, u'total': 9435, u'connected': 297, u'cap': 3000}, u'timestamp': 1421072166316}
     now = time.time()
-    with get_socket('127.0.0.1', 2013) as s:
+    with get_socket('graphite.h4ck.space', 2013) as s:
         for key, value in data.items():
             line = "%s.%s %s %s\n" % (prefix, key, value, now)
             #            if not log is None:
@@ -30,35 +30,90 @@ def write_to_graphite(data, prefix='freifunk', log=None):
             #                    log.debug(line)
             s.sendall(line.encode('latin-1'))
 
-
-def parse_graph(gateways):
+def parse_graph(nodes):
     # parse graph
-    URL = 'https://map.darmstadt.freifunk.net/data.graph.json'
+    URL = 'https://map.darmstadt.freifunk.net/data/graph.json'
     update = {}
 
-    if len(gateways) > 0:
-        data = requests.get(URL, timeout=1).json()
+    data = requests.get(URL, timeout=1).json()
 
+    links = data.get('batadv', {}).get('links', [])
+    graph_nodes = data.get('batadv', {}).get('nodes', [])
+
+    del data
+
+    edges = {}
+
+    for link in links:
+        key = '{}.{}'.format(min(link['source'], link['target']), max(link['source'], link['target']))
+        if not key in edges:
+            edges[key] = link
+
+    del links
+
+    deletes = []
+    for key, edge in edges.items():
+        try:
+            source_id = graph_nodes[edge['source']]['node_id']
+            target_id = graph_nodes[edge['target']]['node_id']
+        except KeyError:
+            deletes.append(key)
+        else:
+            try:
+                edge['source'] = nodes[source_id]
+                edge['target'] = nodes[target_id]
+            except KeyError:
+                pass
+
+
+    for d in deletes:
+        del edges[d]
+
+    values = {}
+
+    for key, edge in edges.items():
+        try:
+            key = 'link.{}.{}.tq'.format(edge['source']['nodeinfo']['hostname'],edge['target']['nodeinfo']['hostname'])
+        except TypeError:
+            pass
+        else:
+            values[key] = 1.0/edge['tq']
+
+    return values
+
+def yield_nodes(data):
+    version = int(data.get('version', 0))
+    if version == 2:
+        for node in data['nodes']:
+            yield node
+        return
+    elif version == 1:
+        for mac, node in data['nodes'].items():
+            yield node
+        return
+    raise RuntimeError("Invalid version: %i" % version)
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
     while True:
         pprinter = pprint.PrettyPrinter(indent=4)
 
-        URL = 'https://map.darmstadt.freifunk.net/data/nodes.json'
+        URL = 'https://www1.darmstadt.freifunk.net/data/nodes.json'
 
         gateways = []
 
         try:
             client_count = 0
 
-            data = requests.get(URL, timeout=1).json()
-            nodes = data['nodes']
-            known_nodes = len(nodes.keys())
+            r = requests.get(URL, timeout=1, headers={'Host': 'map.darmstadt.freifunk.net'})
+            print(r.headers)
+            data = r.json()
+            known_nodes = 0
             online_nodes = 0
-            update = {}
+            update = {} # parse_graph(nodes)
             gateway_count = 0
-            for node_mac, node in nodes.items():
+            for node in yield_nodes(data):
+                known_nodes += 1
                 try:
                     hostname = node['nodeinfo']['hostname']
 
@@ -66,7 +121,7 @@ def main():
                     if flags['online']:
                         online_nodes += 1
 
-                    if flags['gateway']:
+                    if flags.get('gateway', False):
                         gateway_count += 1
                         gateways.append(hostname)
 
@@ -121,7 +176,7 @@ def main():
                             pass
                 except KeyError as e:
                     print(time.time())
-                    print('error while reading ', node_mac)
+                    print('error while reading ', node, e)
                     print(e)
 
                 #            print(time.time())
