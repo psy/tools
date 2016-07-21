@@ -103,7 +103,8 @@ def main():
         'ffda-bat',
         'ffda-br',
         'icvpn',
-        'ffda-transport'
+        'ffda-transport',
+        'services',
     ]
 
     fields = [
