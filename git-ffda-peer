@@ -33,7 +33,7 @@ def add_key(args):
     return _add_key(args.name, args.key)
 
 
-def _add_key(name, key):
+def _add_key(name, key, mac=None):
     files = list(search_key(key))
 
     if len(files) > 0:
@@ -54,11 +54,19 @@ def _add_key(name, key):
         return 1
 
     with open(name, 'w') as fh:
-        template = """\
+        if mac is None:
+            template = """\
 # {name}
 key "{key}";
 """
-        content = template.format(name=name, key=key)
+            content = template.format(name=name, key=key)
+        else:
+            template = """\
+# {name}
+# {mac}
+# key "{key}";
+"""
+            content = template.format(name=name, mac=mac.strip(), key=key)
         fh.write(content)
 
     if subprocess.check_call(['git', 'add', name]):
@@ -90,7 +98,7 @@ def aa(args):
     formats = [
         re.compile(''.join([
             r'#?\s*(?P<name>{})\s*\n'.format(name_exp),
-            r'(#[^\n]*\n)?',
+            r'(#(?P<mac>[^\n]*)\n)?',
             r'((key (?P<quote>["\' ]))?(?P<key>[a-z0-9]{64})(\g<quote>;?)?)\n?'
             ]), flags=re.MULTILINE),
     ]
@@ -99,7 +107,7 @@ def aa(args):
         m = format.match(content)
         if m:
             group = m.groupdict()
-            _add_key(group['name'], group['key'])
+            _add_key(group['name'], group['key'], mac=group.get('mac', None))
             return 0
 
     print('Invalid input.', file=sys.stderr)
