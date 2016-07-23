@@ -64,7 +64,7 @@ key "{key}";
             template = """\
 # {name}
 # {mac}
-# key "{key}";
+key "{key}";
 """
             content = template.format(name=name, mac=mac.strip(), key=key)
         fh.write(content)
