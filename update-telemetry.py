@@ -81,8 +81,6 @@ def read_from_fastd_socket(filename):
 
 def get_fastd_process_stats():
     for proc in psutil.process_iter():
-        if  'fastd' in proc.name():
-            print (proc.name)
         if proc.name() == 'fastd':
             # 11905: 00000000000000000000000001000000:0035 00000000000000000000000000000000:0000 07 00000000:00000000 00:00000000 00000000     0        0 4469598 2 ffff880519be5100 0
             drop_count = 0
