@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import psutil
 import os
 import json
 import re
@@ -77,6 +78,31 @@ def read_from_fastd_socket(filename):
         except Exception as e:
             print(e)
             return {}
+
+def get_fastd_process_stats():
+    for proc in psutil.process_iter():
+        if  'fastd' in proc.name():
+            print (proc.name)
+        if proc.name() == 'fastd':
+            # 11905: 00000000000000000000000001000000:0035 00000000000000000000000000000000:0000 07 00000000:00000000 00:00000000 00000000     0        0 4469598 2 ffff880519be5100 0
+            drop_count = 0
+            for proto in ['udp', 'udp6']:
+                with open('/proc/{}/net/{}'.format(proc.pid, proto), 'r') as fh:
+                    for line in (line.strip() for line in fh.read().split('\n')):
+                        if not line:
+                            continue
+
+                        if line.startswith('sl'):
+                            continue
+
+                        parts = line.split(' ')
+
+                        drop_count += int(parts[-1])
+
+
+            return drop_count
+
+    return None
 
 
 def main():
@@ -181,7 +207,9 @@ def main():
         if len(data) > 0:
             update.update({'fastd.%s.%s' % (name, key): value for (key, value) in data.items()})
 
-
+    fastd_drops = get_fastd_process_stats()
+    if fastd_drops:
+        update['fastd.drops'] = fastd_drops
 
     #pprint.pprint(update)
     write_to_graphite(update)
