@@ -219,7 +219,7 @@ def main():
 
             update['dhcp_leases'] = len(isc_leases.get())
             update['dhcp_leases_valid'] = len(isc_leases.get_current())
-            update['dhcp_leases_active'] = len([lease for lease in isc_leases.get() if lease.valid])
+            update['dhcp_leases_active'] = len([1 for lease in isc_leases.get() if lease.valid])
 
         except Exception:
             pass
