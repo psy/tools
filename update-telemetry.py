@@ -12,7 +12,7 @@ import logging
 try:
     from isc_dhcp_leases import IscDhcpLeases
 except ImportError:
-    pass
+    IscDhcpLeases = None
 
 logger = logging.getLogger(__name__)
 
