@@ -9,6 +9,7 @@ import pprint
 import time
 import socket
 import logging
+from isc_dhcp_leases import IscDhcpLeases
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +209,19 @@ def main():
     fastd_drops = get_fastd_process_stats()
     if fastd_drops:
         update['fastd.drops'] = fastd_drops
+
+    leases = {}
+    leases['all'] = isc_leases.get()
+    leases['active'] = isc_leases.get_current()
+    leases['valid'] = []
+
+    for lease in leases['all']:
+        if lease.valid:
+            leases['valid'].append(lease)
+
+    update['dhcp_leases'] = len(leases['all'])
+    update['dhcp_leases_valid'] = len(leases['valid'])
+    update['dhcp_leases_active'] = len(leases['active'])
 
     #pprint.pprint(update)
     write_to_graphite(update)
