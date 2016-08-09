@@ -9,7 +9,10 @@ import pprint
 import time
 import socket
 import logging
-from isc_dhcp_leases import IscDhcpLeases
+try:
+    from isc_dhcp_leases import IscDhcpLeases
+except ImportError:
+    disable_isc_dhcp_leases = True
 
 logger = logging.getLogger(__name__)
 
@@ -210,18 +213,20 @@ def main():
     if fastd_drops:
         update['fastd.drops'] = fastd_drops
 
-    leases = {}
-    leases['all'] = isc_leases.get()
-    leases['active'] = isc_leases.get_current()
-    leases['valid'] = []
+    if not disable_isc_dhcp_leases:
+        try:
+            isc_leases = IscDhcpLeases('')
 
-    for lease in leases['all']:
-        if lease.valid:
-            leases['valid'].append(lease)
+            leases = {}
+            leases['all'] = isc_leases.get()
+            leases['active'] = isc_leases.get_current()
+            leases['valid'] = [lease for lease in leases if lease.valid]
 
-    update['dhcp_leases'] = len(leases['all'])
-    update['dhcp_leases_valid'] = len(leases['valid'])
-    update['dhcp_leases_active'] = len(leases['active'])
+            update['dhcp_leases'] = len(leases['all'])
+            update['dhcp_leases_valid'] = len(leases['valid'])
+            update['dhcp_leases_active'] = len(leases['active'])
+        except:
+            pass
 
     #pprint.pprint(update)
     write_to_graphite(update)
