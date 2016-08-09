@@ -12,7 +12,7 @@ import logging
 try:
     from isc_dhcp_leases import IscDhcpLeases
 except ImportError:
-    disable_isc_dhcp_leases = True
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -213,19 +213,15 @@ def main():
     if fastd_drops:
         update['fastd.drops'] = fastd_drops
 
-    if not disable_isc_dhcp_leases:
+    if IscDhcpLeases:
         try:
-            isc_leases = IscDhcpLeases('')
+            isc_leases = IscDhcpLeases('/var/lib/dhcp/dhcpd.leases')
 
-            leases = {}
-            leases['all'] = isc_leases.get()
-            leases['active'] = isc_leases.get_current()
-            leases['valid'] = [lease for lease in leases if lease.valid]
+            update['dhcp_leases'] = len(isc_leases.get())
+            update['dhcp_leases_valid'] = len(isc_leases.get_current())
+            update['dhcp_leases_active'] = len([lease for lease in isc_leases.get() if lease.valid])
 
-            update['dhcp_leases'] = len(leases['all'])
-            update['dhcp_leases_valid'] = len(leases['valid'])
-            update['dhcp_leases_active'] = len(leases['active'])
-        except:
+        except Exception:
             pass
 
     #pprint.pprint(update)
